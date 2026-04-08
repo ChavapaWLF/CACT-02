@@ -66,13 +66,9 @@ $ bash test_semantic.sh
 
 #### 获取测试程序
 
-从国科大在线网站下载“test_project3.zip”压缩包，将其内容全部解压到 CACT 实验仓库的“test”目录下（直接放入，不要带多余的一层目录“test_project3”），然后将 CACTIO 库文件“libcactio.a”（提供了 `print_int()` 等内置函数的实现）移动到仓库的“build”目录，其它文件保持在“test”目录即可。
+本实验使用的测试程序主要存于“test/samples_codegen_functional”和“test/samples_codegen_”，分别用于功能测试和性能测试。存于“build”目录的 CACTIO 库文件“libcactio.a”提供了 `print_int()` 等内置函数的实现。它是已经编译好的，如果在自己机器上不能正常使用，可以考虑根据提供的源代码“libcactio.c”手动生成一个：
 
-确保 "build" 目录下有 "libcactio.a"（CACTIO 库文件，提供了 `print_int()` 等内置函数的实现），"test" 目录下有 "cactio.c" 和 "libcactio.c" 这两个文件（对应的源代码）。
-
-提供的 "libcactio.a" 是已经编译好的，如果在自己机器上不能正常使用，可以考虑根据提供的源代码 "libcactio.c" 手动生成一个：
-
-（设当前位于 "test" 目录下）
+（设当前位于“test”目录下）
 
 ```bash
 $ riscv64-unknown-elf-gcc libcactio.c -c -o ../build/cactio.o
