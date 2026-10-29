@@ -1,47 +1,66 @@
+#include <fstream>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
-// #include "antlr4-runtime.h"
-#include "tree/ErrorNode.h"
+#include "antlr4-runtime.h"
+#include "CACTLexer.h"
+#include "CACTParser.h"
 
-#include "HelloLexer.h"
-#include "HelloParser.h"
-#include "HelloVisitor.h"
+namespace {
 
-using namespace antlr4;
-
-class Analysis : public HelloVisitor {
+class SyntaxError : public std::runtime_error {
 public:
-    std::any visitR(HelloParser::RContext *context) {
-        visitChildren( context );
-        
-        std::cout << "enter rule [r]!" << std::endl;
-        std::cout << "the ID is: " << context->ID()->getText().c_str() << std::endl;
-        return nullptr;
-    }
+    using std::runtime_error::runtime_error;
+};
 
-    std::any visitErrorNode(tree::ErrorNode * node) override {
-        std::cout << "visit error node!" << std::endl;
-        return nullptr;
+// ANTLR normally recovers from errors. Throw from BOTH recognizers so that a
+// skipped illegal character or an inserted token can never turn into success.
+class ThrowingErrorListener final : public antlr4::BaseErrorListener {
+public:
+    void syntaxError(antlr4::Recognizer*, antlr4::Token*, size_t line,
+                     size_t column, const std::string& message,
+                     std::exception_ptr) override {
+        throw SyntaxError(std::to_string(line) + ":" +
+                          std::to_string(column + 1) + ": error: " + message);
     }
 };
 
+} // namespace
+
 int main(int argc, const char* argv[]) {
-  std::ifstream stream;
-  stream.open("../test/test.hello");
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <source.cact>\n";
+        return 2;
+    }
 
-  if (!stream.is_open())
-  {
-    std::cerr << "Failed to open file" << std::endl;
-    return 9;
-  }
+    try {
+        std::ifstream source(argv[1], std::ios::binary);
+        if (!source.is_open()) {
+            std::cerr << argv[1] << ": error: cannot open input file\n";
+            return 2;
+        }
+        source.exceptions(std::ios::badbit);
 
-  ANTLRInputStream   input(stream);
-  HelloLexer         lexer(&input);
-  CommonTokenStream  tokens(&lexer);
-  HelloParser        parser(&tokens);
+        antlr4::ANTLRInputStream input(source);
+        ThrowingErrorListener errors;
+        CACTLexer lexer(&input);
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(&errors);
 
-  Analysis visitor;
-  visitor.visit( parser.r() );
+        antlr4::CommonTokenStream tokens(&lexer);
+        CACTParser parser(&tokens);
+        parser.removeErrorListeners();
+        parser.addErrorListener(&errors);
 
-  return 0;
+        // compUnit includes EOF: a valid prefix does not hide a malformed tail.
+        parser.compUnit();
+        return 0;
+    } catch (const SyntaxError& error) {
+        std::cerr << argv[1] << ':' << error.what() << '\n';
+        return 1;
+    } catch (const std::exception& error) {
+        std::cerr << argv[1] << ": error: " << error.what() << '\n';
+        return 2;
+    }
 }
