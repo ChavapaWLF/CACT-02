@@ -16,3 +16,6 @@ grammar/*.tokens
 
 out
 scripts
+
+ref
+reports
